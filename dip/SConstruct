@@ -1,0 +1,83 @@
+from rsf.proj import *
+from rsf.prog import RSFROOT
+
+proj = Project()
+
+exe = proj.Program('Mkirchhoff.c')
+
+
+nz = 257
+dz = 0.004
+nx = 256
+dx = 0.008
+
+vel = 1.
+
+Flow('vrms',None,'math output=%d n1=257 d1=0.004 o1=0 n2=257 d2=0.008 o2=-1.024 '%vel)
+
+Flow('Sigmoid',None,
+     '''
+     sigmoid d1=.004 n1=200 d2=.008 n2=200 |
+     smooth rect1=3 diff1=1 adj=1 | smooth rect1=3
+     ''')
+
+
+
+# Dome model
+############
+z0 = (nz/3.0 + 1.0) * 0.25
+z1 = nz/3.0 + 0.5 + 3.*z0
+x0 = dx*(nx/2.0 + 1.0) * 0.5
+
+Flow('bot',None,
+     'spike n1=115 d1=%g o1=-0.456 mag=%g' % (dx,dz*z1))
+Flow('top','bot',
+     'math output="%g - %g*sqrt(1-x1*x1*%g)" ' % \
+     (dz*z1,dz*2.*z0,4./(3.*x0*x0)))
+Flow('two','top bot',
+     'cat axis=2 ${SOURCES[1]} | unif2 d1=%g n1=%d v00=1,2,3' % (dz,nz))
+Flow('Dome','two',
+     '''
+     igrad |
+     bandpass flo=10 fhi=50 |
+     pad beg2=71 end2=71 |
+     put n3=1 
+     ''')
+
+nslst = [1,.0001]
+miglst = ['Dome','Sigmoid']
+num = len(miglst)
+for i in range(0,num):
+    
+    item = miglst[i]
+
+    Plot(item,'grey title="\s300 %s Model"'%item)
+    
+    Flow(item+'-mod',item+' %s'% exe[0],
+        '''
+        ./${SOURCES[1]} vel=%g adj=n |
+        noise mean=0 var=%g
+        '''%(vel,nslst[i]))
+    
+    Plot(item+'-mod','grey title="\s300 %s Data"'%item)
+    
+    Flow(item+'-image',item+'-mod %s'% exe[0],
+        '''
+        ./${SOURCES[1]} vel=%g adj=y|
+        smooth rect1=2 rect2=2
+        '''%vel)
+    Plot(item+'-image','grey title="\s300 %s Image" '%item)
+    # least squares
+    Flow(item+'-ls',item+'-mod %s'%exe[0],
+    '''
+    conjgrad
+    ./${SOURCES[1]} vel=%g niter=30 mod=${SOURCES[0]} |
+    smooth rect1=2 rect2=2
+    '''%vel
+    )
+    Plot(item+'-ls','grey title="\s300 %s LS Image"'%item)
+    
+    Plot(item+'pre1',[item,item+'-mod'],'SideBySideAniso')
+    Plot(item+'pre2',[item+'-ls',item+'-image'],'SideBySideAniso')
+    Result(item+'-res',[item+'pre1',item+'pre2'],'OverUnderAniso')
+End()

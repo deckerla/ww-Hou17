@@ -1,0 +1,26 @@
+from rsf.proj import *
+from rsf.prog import RSFROOT
+
+proj = Project()
+
+exe = proj.Program('Mkirchhoff.c')
+
+
+# dipping example
+x0 = 0
+dx = .1
+nx = 100
+z0 = 0
+dz = .1
+nz = 100
+t0 = 0
+dt = .1
+nt = 100
+y0 = 0
+dt = .1
+nt = 100
+vel = 1.
+
+Flow('points',None,'math output')
+
+End()

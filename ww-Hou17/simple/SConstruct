@@ -1,0 +1,8 @@
+from rsf.proj import *
+
+
+Flow('simple',None,'math n1=400 d1=.04 o1=0 output="sin(x1)"')
+
+Result('simple','wiggle title="Sine Wave" ')
+
+End()
